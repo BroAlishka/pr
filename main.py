@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 TOKEN = "8195308262:AAFuWetZ6_tfEZsR_pGdsn6NjJa7KDjRToU"  # Замените на реальный токен!
 
-# --- Данные викторины ---
+# --- Данные викторины (20 вопросов) ---
 QUIZ_DATA = [
     {"question": "Кто был первым царём России?", "answer": "Иван Грозный"},
     {"question": "В каком году произошло Крещение Руси?", "answer": "988"},
@@ -24,6 +24,20 @@ QUIZ_DATA = [
     {"question": "Как называлась первая русская летопись?", "answer": "Повесть временных лет"},
     {"question": "Кто основал Санкт-Петербург?", "answer": "Пётр I"},
     {"question": "В каком году началась Великая Отечественная война?", "answer": "1941"},
+    {"question": "Как звали первого космонавта?", "answer": "Юрий Гагарин"},
+    {"question": "Кто написал 'Слово о полку Игореве'?", "answer": "Неизвестный автор"},
+    {"question": "В каком году отменили крепостное право?", "answer": "1861"},
+    {"question": "Как называлось государство монголо-татар на Руси?", "answer": "Золотая Орда"},
+    {"question": "Кто возглавлял Красную Армию в Гражданскую войну?", "answer": "Лев Троцкий"},
+    {"question": "Какой город был первой столицей Древней Руси?", "answer": "Новгород"},
+    {"question": "Кто был последним императором России?", "answer": "Николай II"},
+    {"question": "В каком году произошла Октябрьская революция?", "answer": "1917"},
+    {"question": "Как назывался первый русский университет?", "answer": "Московский университет"},
+    {"question": "Кто победил в Куликовской битве?", "answer": "Дмитрий Донской"},
+    {"question": "Какой князь принял христианство на Руси?", "answer": "Владимир Красно Солнышко"},
+    {"question": "В каком году распался СССР?", "answer": "1991"},
+    {"question": "Какой город выдержал 900-дневную блокаду?", "answer": "Ленинград"},
+    {"question": "Кто написал 'Войну и мир'?", "answer": "Лев Толстой"}
 ]
 
 # --- Глобальные переменные ---
@@ -56,14 +70,15 @@ async def cmd_start(message: types.Message):
 async def cmd_quiz(message: types.Message):
     global current_question, correct_answer, used_questions
     
+    # Сброс вопросов если все использованы
+    if len(used_questions) >= len(QUIZ_DATA):
+        used_questions.clear()
+        await message.answer("Все вопросы закончились! Начинаем заново.")
+    
     # Выбираем неиспользованный вопрос
     available_questions = [q for q in QUIZ_DATA if q["question"] not in used_questions]
-    if not available_questions:
-        await message.answer("Все вопросы закончились! Начните заново.")
-        used_questions.clear()
-        return
-    
     question_data = random.choice(available_questions)
+    
     current_question = question_data["question"]
     correct_answer = question_data["answer"].lower()
     used_questions.add(current_question)
@@ -75,12 +90,12 @@ async def cmd_quiz(message: types.Message):
 async def check_answer(message: types.Message):
     global current_question, correct_answer
     
-    if not current_question:
+    if not current_question or message.text.startswith('/'):
         return
     
-    user_answer = message.text.strip().lower()
     user_id = message.from_user.id
     user_name = message.from_user.first_name
+    user_answer = message.text.strip().lower()
     
     if user_answer == correct_answer:
         # Обновляем рейтинг
@@ -97,25 +112,24 @@ async def check_answer(message: types.Message):
             f"❌ Неверно! Правильный ответ: {correct_answer.capitalize()}"
         )
     
-    current_question = None  # Сбрасываем вопрос
+    current_question = None
 
 # --- Команда /top ---
-@dp.message(Command("top"), lambda msg: msg.chat.type in ["group", "supergroup"])
+@dp.message(Command("top"))
 async def cmd_top(message: types.Message):
     if not user_scores:
         await message.answer("Рейтинг пуст. Начните викторину /quiz!")
         return
     
-    # Сортируем игроков по очкам
-    sorted_players = sorted(
-        user_scores.values(),
-        key=lambda x: x["score"],
-        reverse=True
-    )[:10]  # Топ-10
+    # Получаем список всех участников
+    all_players = list(user_scores.values())
+    
+    # Сортируем по очкам (по убыванию)
+    sorted_players = sorted(all_players, key=lambda x: x["score"], reverse=True)
     
     # Формируем текст рейтинга
     top_text = "🏆 Топ игроков:\n"
-    for i, player in enumerate(sorted_players, 1):
+    for i, player in enumerate(sorted_players[:10], 1):  # Топ-10
         top_text += f"{i}. {player['name']}: {player['score']} баллов\n"
     
     await message.answer(top_text)
