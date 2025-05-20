@@ -24,13 +24,12 @@ QUIZ_DATA = [
     {"question": "Как называлась первая русская летопись?", "answer": "Повесть временных лет"},
     {"question": "Кто основал Санкт-Петербург?", "answer": "Пётр I"},
     {"question": "В каком году началась Великая Отечественная война?", "answer": "1941"},
-    {"question": "Как звали первого космонавта?", "answer": "Юрий Гагарин"},
 ]
 
 # --- Глобальные переменные ---
 current_question = None
 correct_answer = None
-user_scores = {}
+user_scores = {}  # {user_id: {"name": str, "score": int}}
 used_questions = set()
 
 # --- Инициализация бота ---
@@ -41,10 +40,14 @@ dp = Dispatcher()
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     builder = ReplyKeyboardBuilder()
-    builder.add(types.KeyboardButton(text="/quiz"))
+    builder.row(
+        types.KeyboardButton(text="/quiz"),
+        types.KeyboardButton(text="/top")
+    )
     await message.answer(
         "📜 Привет! Я бот-викторина по истории России.\n"
-        "Нажми /quiz в группе, чтобы начать игру!",
+        "Нажми /quiz в группе, чтобы начать игру!\n"
+        "/top - топ игроков",
         reply_markup=builder.as_markup(resize_keyboard=True)
     )
 
@@ -77,19 +80,45 @@ async def check_answer(message: types.Message):
     
     user_answer = message.text.strip().lower()
     user_id = message.from_user.id
+    user_name = message.from_user.first_name
     
     if user_answer == correct_answer:
-        user_scores[user_id] = user_scores.get(user_id, 0) + 1
+        # Обновляем рейтинг
+        if user_id not in user_scores:
+            user_scores[user_id] = {"name": user_name, "score": 0}
+        user_scores[user_id]["score"] += 1
+        
         await message.reply(
-            f"✅ {message.from_user.first_name}, правильно! +1 балл.\n"
-            f"Твой счёт: {user_scores[user_id]}"
+            f"✅ {user_name}, правильно! +1 балл.\n"
+            f"Твой счёт: {user_scores[user_id]['score']}"
         )
     else:
         await message.reply(
             f"❌ Неверно! Правильный ответ: {correct_answer.capitalize()}"
         )
     
-    current_question = None  # Сбрасываем вопрос после ответа
+    current_question = None  # Сбрасываем вопрос
+
+# --- Команда /top ---
+@dp.message(Command("top"), lambda msg: msg.chat.type in ["group", "supergroup"])
+async def cmd_top(message: types.Message):
+    if not user_scores:
+        await message.answer("Рейтинг пуст. Начните викторину /quiz!")
+        return
+    
+    # Сортируем игроков по очкам
+    sorted_players = sorted(
+        user_scores.values(),
+        key=lambda x: x["score"],
+        reverse=True
+    )[:10]  # Топ-10
+    
+    # Формируем текст рейтинга
+    top_text = "🏆 Топ игроков:\n"
+    for i, player in enumerate(sorted_players, 1):
+        top_text += f"{i}. {player['name']}: {player['score']} баллов\n"
+    
+    await message.answer(top_text)
 
 # --- Запуск бота ---
 async def main():
