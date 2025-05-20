@@ -131,17 +131,16 @@ async def cmd_top(message: types.Message):
         await message.answer("Рейтинг пуст. Начните викторину /quiz!")
         return
     
-    # Получаем и сортируем игроков
-    sorted_players = sorted(
-        user_scores.values(),
-        key=lambda x: x["score"],
-        reverse=True
-    )
+    # Получаем список всех участников
+    all_players = list(user_scores.values())
     
-    # Формируем текст
+    # Сортируем по очкам (по убыванию)
+    sorted_players = sorted(all_players, key=lambda x: x["score"], reverse=True)
+    
+    # Формируем текст рейтинга
     top_text = "🏆 Топ игроков:\n"
-    for idx, player in enumerate(sorted_players[:10], 1):
-        top_text += f"{idx}. {player['name']}: {player['score']} баллов\n"
+    for i, player in enumerate(sorted_players[:10], 1):  # Топ-10
+        top_text += f"{i}. {player['name']}: {player['score']} баллов\n"
     
     await message.answer(top_text)
 
