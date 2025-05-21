@@ -1,6 +1,5 @@
 
 #"8195308262:AAFuWetZ6_tfEZsR_pGdsn6NjJa7KDjRToU"
-
 import logging
 import random
 import asyncio
@@ -18,7 +17,6 @@ TOKEN = "8195308262:AAFuWetZ6_tfEZsR_pGdsn6NjJa7KDjRToU"  # Замените н�
 
 # --- Данные викторины (30 вопросов) ---
 QUIZ_DATA = [
-    # Первые 20 вопросов (из предыдущей версии)
     {"question": "Кто был первым царём России?", "answer": "Иван Грозный"},
     {"question": "В каком году произошло Крещение Руси?", "answer": "988"},
     {"question": "Кто победил в Ледовом побоище?", "answer": "Александр Невский"},
@@ -28,7 +26,7 @@ QUIZ_DATA = [
     {"question": "Как звали первого космонавта?", "answer": "Юрий Гагарин"},
     {"question": "Кто написал 'Слово о полку Игореве'?", "answer": "Неизвестный автор"},
     {"question": "В каком году отменили крепостное право?", "answer": "1861"},
-    {"question": "Как называлось государство монголо-татар на Руси?", "answer": "Золотая Орda"},
+    {"question": "Как называлось государство монголо-татар на Руси?", "answer": "Золотая Орда"},
     {"question": "Кто возглавлял Красную Армию в Гражданскую войну?", "answer": "Лев Троцкий"},
     {"question": "Какой город был первой столицей Древней Руси?", "answer": "Новгород"},
     {"question": "Кто был последним императором России?", "answer": "Николай II"},
@@ -39,8 +37,6 @@ QUIZ_DATA = [
     {"question": "В каком году распался СССР?", "answer": "1991"},
     {"question": "Какой город выдержал 900-дневную блокаду?", "answer": "Ленинград"},
     {"question": "Кто написал 'Войну и мир'?", "answer": "Лев Толстой"},
-
-    # Новые 10 вопросов:
     {"question": "Как называлась первая печатная книга на Руси?", "answer": "Апостол"},
     {"question": "Кто возглавил первое кругосветное путешествие России?", "answer": "Иван Крузенштерн"},
     {"question": "В каком году была основана Москва?", "answer": "1147"},
@@ -79,7 +75,7 @@ async def cmd_start(message: types.Message):
     )
 
 # --- Команда /quiz ---
-@dp.message(Command("quiz"), lambda msg: msg.chat.type in ["group", "supergroup"])
+@dp.message(Command("quiz"))
 async def cmd_quiz(message: types.Message):
     global current_question, correct_answer, used_questions
     
@@ -97,11 +93,11 @@ async def cmd_quiz(message: types.Message):
     await message.answer(f"❓ Вопрос: {current_question}")
 
 # --- Проверка ответов ---
-@dp.message(lambda msg: msg.chat.type in ["group", "supergroup"])
+@dp.message()
 async def check_answer(message: types.Message):
     global current_question, correct_answer
     
-    if not current_question or message.text.startswith('/'):
+    if not current_question or message.chat.type not in ["group", "supergroup"] or message.text.startswith('/'):
         return
     
     user_id = message.from_user.id
@@ -124,22 +120,28 @@ async def check_answer(message: types.Message):
     
     current_question = None
 
-# --- Команда /top (ИСПРАВЛЕННАЯ) ---
+# --- Команда /top (ПОЛНОСТЬЮ ПЕРЕРАБОТАНА) ---
 @dp.message(Command("top"))
 async def cmd_top(message: types.Message):
     if not user_scores:
         await message.answer("Рейтинг пуст. Начните викторину /quiz!")
         return
     
-    # Получаем список всех участников
-    all_players = list(user_scores.values())
+    # Создаем список для сортировки
+    players_list = []
+    for user_id, data in user_scores.items():
+        players_list.append({
+            "name": data["name"],
+            "score": data["score"],
+            "user_id": user_id
+        })
     
-    # Сортируем по очкам (по убыванию)
-    sorted_players = sorted(all_players, key=lambda x: x["score"], reverse=True)
+    # Сортируем по убыванию очков
+    sorted_players = sorted(players_list, key=lambda x: x["score"], reverse=True)
     
-    # Формируем текст рейтинга
+    # Формируем сообщение
     top_text = "🏆 Топ игроков:\n"
-    for i, player in enumerate(sorted_players[:10], 1):  # Топ-10
+    for i, player in enumerate(sorted_players[:10], 1):
         top_text += f"{i}. {player['name']}: {player['score']} баллов\n"
     
     await message.answer(top_text)
